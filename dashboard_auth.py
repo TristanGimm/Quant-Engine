@@ -50,7 +50,7 @@ class Login(Resource):
     def render_GET(self, request):
         request.setHeader(b'Cache-Control', b'no-store')
         request.setHeader(b'X-Frame-Options', b'DENY')
-        if request.path == b'/healthz':
+        if request.path in (b'/healthz', b'/favicon.svg'):
             return self.dashboard.render_GET(request)
         if request.path == b'/login':
             request.setHeader(b'Content-Type', b'text/html; charset=utf-8')
