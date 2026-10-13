@@ -350,6 +350,7 @@ class Dashboard(Resource):
         super().__init__()
         self.engine = engine
         self.html = (Path(__file__).parent / "web" / "index.html").read_bytes()
+        self.favicon = (Path(__file__).parent / "web" / "favicon.svg").read_bytes()
 
     def render_GET(self, request):
         request.setHeader(b"Cache-Control", b"no-store")
@@ -357,6 +358,10 @@ class Dashboard(Resource):
         if request.path == b"/healthz":
             request.setHeader(b"Content-Type", b"application/json")
             return b'{"ok":true}'
+        if request.path == b"/favicon.svg":
+            request.setHeader(b"Content-Type", b"image/svg+xml")
+            request.setHeader(b"Cache-Control", b"public, max-age=86400")
+            return self.favicon
         if request.path in (b"/api/state", b"/readyz"):
             state = self.engine.snapshot()
             if request.path == b"/readyz" and not state["ready"]:
