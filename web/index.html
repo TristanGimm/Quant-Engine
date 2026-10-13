@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GIMM · Quant Engine</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0b1019;color:#e6edf7}
+body{max-width:1180px;margin:auto;padding:32px}header{display:flex;justify-content:space-between;align-items:center}h1{font-size:25px}small,footer{color:#a2afc4}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:28px 0}.card,section{background:#131c2b;border:1px solid #26344c;border-radius:12px;padding:20px}.value{font-size:26px;margin-top:12px}canvas{width:100%;height:310px}#hurst,#noise{height:150px}#error{color:#ffb59c}#status{color:#91d7c7}.panel{margin-top:16px}.panel-top{display:flex;justify-content:space-between;align-items:center;gap:16px}.explain{line-height:1.6}.explain p{margin:10px 0}.legend{display:flex;flex-wrap:wrap;gap:18px;margin:16px 0}.key{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.muted{color:#a2afc4}details{margin-top:16px}footer{margin-top:20px;font-size:13px;line-height:1.6}@media(max-width:700px){body{padding:16px}.cards{grid-template-columns:1fr 1fr}header,.panel-top{display:block}}
+</style>
+<header><div><small>GIMM HOLDING / MARKET RESEARCH</small><h1>Quant Engine · SYM4 + HURST + OU</h1></div><div id="status">Connecting to dashboard…</div></header>
+<form method="post" action="/logout"><button type="submit">Sign out</button></form>
+<p id="error" role="alert"></p>
+<div class="cards">
+  <div class="card"><small id="symbol">Market</small><div class="value" id="price">—</div></div>
+  <div class="card"><small>Regime</small><div class="value" id="regime">—</div></div>
+  <div class="card"><small>Hurst</small><div class="value" id="h">—</div></div>
+  <div class="card"><small>Latest tick</small><div class="value" id="age">—</div></div>
+  <div class="card"><small>Regime distance · original confidence formula</small><div class="value" id="confidence">—</div></div>
+  <div class="card"><small>Market Noise · Tick Volatility</small><div class="value" id="noise-value">—</div></div>
+  <div class="card"><small>OU λ · original value per sample</small><div class="value" id="ou">—</div></div>
+  <div class="card"><small>Sampling · latest bid held between ticks</small><div class="value" id="interval">—</div></div>
+</div>
+
+<section class="panel">
+  <h3 id="chart-title">Market price & Sym4 wavelet</h3>
+  <small>Grey: raw tick data · Regime colour: Sym4 SWT, level 3 · Latest 100 of 256 samples</small>
+  <canvas id="prices" aria-label="Raw and denoised price history"></canvas>
+</section>
+<section class="panel">
+  <div class="panel-top"><h3>Market Noise (Tick Volatility)</h3><small>Mean |Bid − Sym4| · Window: 20 · History: 60</small></div>
+  <canvas id="noise" aria-label="Market noise bar chart"></canvas>
+</section>
+<section class="panel">
+  <div class="panel-top"><h3>Hurst exponent</h3><small id="ou-title">Ornstein–Uhlenbeck Reversion Speed (λ): —</small></div>
+  <small>Hurst: 100-sample window, lags 2–19 · OU: 50-sample window · Dashed line: H = 0.5</small>
+  <canvas id="hurst" aria-label="Hurst history with reference line at 0.5"></canvas>
+</section>
+<div class="cards">
+  <div class="card"><small>Kaufman Efficiency Ratio · 0 to 1</small><div class="value" id="er">—</div></div>
+  <div class="card"><small>OU half-life · seconds</small><div class="value" id="half-life">—</div></div>
+  <div class="card"><small>OU equilibrium μ · estimated</small><div class="value" id="ou-mean">—</div></div>
+  <div class="card"><small>OU deviation · z-score</small><div class="value" id="ou-z">—</div></div>
+</div>
+<section class="panel explain">
+  <h3>How to read the regime</h3>
+  <div class="legend">
+    <span><i class="key" style="background:#38bdf8"></i>Blue: trend / persistence</span>
+    <span><i class="key" style="background:#c084fc"></i>Purple: mean reversion / antipersistence</span>
+    <span><i class="key" style="background:#fbbf24"></i>Amber: neutral / no trade under your rule</span>
+    <span><i class="key" style="background:#94a3b8"></i>Grey: warming up / analysis unavailable</span>
+  </div>
+  <p id="regime-text">Waiting for market data.</p>
+  <p class="muted" id="quality-text"></p>
+  <p class="muted">The colour identifies the regime, not a long or short direction. The original confidence formula measures distance from H = 0.5; a score of 40% does not mean a 40% probability of profit.</p>
+</section>
+<section class="panel explain">
+  <h3>Real-time diagnostics: ER & OU</h3>
+  <p id="er-text">ER compares net displacement with the total distance travelled by price.</p>
+  <p id="ou-text">Waiting for enough data to fit the OU model.</p>
+  <details><summary>How do Hurst, ER and fractal dimension relate?</summary>
+    <p>Hurst estimates how price changes scale across different lags. ER = |last price − first price| / sum |price changes| measures path efficiency: 1 is a fully directional path; 0 means no net displacement. A low ER alone does not establish mean reversion.</p>
+    <p>Fractal dimension describes roughness. D = 2 − H holds under self-affinity assumptions; a value derived this way would not provide independent confirmation. A separate Fractal Dimension Index is not used as a substitute for Hurst here.</p>
+    <p>Hurst determines the regime. ER and the OU fit do not override it. Short windows, held prices and market microstructure can bias the estimates.</p>
+  </details>
+</section>
+<footer>Market observation only · No order execution. Confidence follows the original Hurst formula and is not a calibrated success probability. The original sampling loop holds the latest bid between broker ticks; calculations pause after disconnection or when data is more than 120 seconds old.</footer>
+<script>
+function plot(id, series, colors, options = {}) {
+  const c = document.getElementById(id), r = c.getBoundingClientRect(), d = devicePixelRatio || 1;
+  c.width = r.width * d; c.height = r.height * d;
+  const ctx = c.getContext('2d'); ctx.scale(d, d);
+  const w = r.width, h = r.height, all = series.flat();
+  if (!all.length) return;
+  let lo = options.range ? options.range[0] : Math.min(...all);
+  let hi = options.range ? options.range[1] : Math.max(...all);
+  if (hi === lo) { lo -= 1; hi += 1; }
+  if (!options.range) { const pad = (hi - lo) * .08; lo -= pad; hi += pad; }
+  const top = 18, bottom = h - 24, left = 65, right = w - 12;
+  const y = value => top + (hi - value) / (hi - lo) * (bottom - top);
+  ctx.font = '11px system-ui';
+  for (let i = 0; i < 5; i++) {
+    const value = hi - (hi - lo) * i / 4, py = y(value);
+    ctx.strokeStyle = '#27354c'; ctx.beginPath(); ctx.moveTo(left, py); ctx.lineTo(right, py); ctx.stroke();
+    ctx.fillStyle = '#a2afc4'; ctx.fillText(value.toFixed(2), 4, py + 4);
+  }
+  if (options.bands) {
+    options.bands.forEach(band => {
+      ctx.fillStyle = band.color;
+      ctx.fillRect(left, y(band.hi), right - left, y(band.lo) - y(band.hi));
+    });
+  }
+  if (options.baseline !== undefined) {
+    ctx.strokeStyle = '#ffffff88'; ctx.setLineDash([5, 5]); ctx.beginPath();
+    ctx.moveTo(left, y(options.baseline)); ctx.lineTo(right, y(options.baseline)); ctx.stroke(); ctx.setLineDash([]);
+  }
+  series.forEach((values, k) => {
+    ctx.strokeStyle = colors[k]; ctx.fillStyle = colors[k]; ctx.lineWidth = k ? 3 : 1.5;
+    if (options.bars) {
+      const width = (right - left) / values.length;
+      ctx.globalAlpha = .4;
+      values.forEach((v, i) => ctx.fillRect(left + i * width, y(v), Math.max(1, width - 1), y(0) - y(v)));
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const px = left + i * (right - left) / Math.max(values.length - 1, 1);
+        i ? ctx.lineTo(px, y(v)) : ctx.moveTo(px, y(v));
+      });
+      ctx.stroke();
+    }
+  });
+  ctx.fillStyle = '#a2afc4'; ctx.fillText('oldest sample', left, h - 4); ctx.fillText('now', right - 24, h - 4);
+}
+async function update() {
+  try {
+    const response = await fetch('/api/state', {cache: 'no-store'});
+    if (response.status === 401) { location.assign('/login'); return; }
+    if (!response.ok) throw Error();
+    const s = await response.json(), last = s.points.at(-1);
+    const valid = s.ready && s.analysis_ready && Boolean(last);
+    const color = valid ? last.color : '#94a3b8';
+    const thresholds = s.hurst_thresholds, low = thresholds.mean_reversion_below, high = thresholds.trend_above;
+    const regimeLabel = !valid ? s.analysis_status : last.regime === 'RANDOM WALK' ? 'NEUTRAL · NO TRADE' : last.regime;
+    const text = (id, value) => { document.getElementById(id).textContent = value; };
+    text('status', s.status + ' · Account: ' + s.environment.toUpperCase());
+    text('error', s.error || (s.tick_age_seconds > 120 ? 'Market data is stale; check market hours and the connection.' : ''));
+    text('symbol', s.symbol + ' · BID');
+    text('price', s.price === null ? '—' : s.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 5}));
+    text('age', s.tick_age_seconds === null ? '—' : Math.floor(s.tick_age_seconds) + ' s');
+    text('h', last ? last.hurst.toFixed(3) : '—');
+    text('regime', !s.ready ? 'No live data' : regimeLabel);
+    text('confidence', valid ? last.confidence.toFixed(1) + '%' : '—');
+    text('noise-value', last ? last.noise.toFixed(4) : '—');
+    text('ou', last ? last.ou.toFixed(4) : '—');
+    text('interval', Math.round(s.sample_interval_seconds * 1000) + ' ms');
+    text('chart-title', s.symbol + ' REGIME: ' + (valid ? regimeLabel + ' (H=' + last.hurst.toFixed(2) + ')' : regimeLabel));
+    text('ou-title', 'Ornstein–Uhlenbeck Reversion Speed (λ): ' + (last ? last.ou.toFixed(4) : '—'));
+    for (const id of ['chart-title', 'regime', 'confidence']) document.getElementById(id).style.color = color;
+    const er = last ? last.efficiency_ratio : null;
+    const ouFit = last ? last.ou_fit : null, ouValid = valid && ouFit && ouFit.status === 'fitted';
+    text('er', er === null ? '—' : er.toFixed(3));
+    text('half-life', ouValid ? ouFit.half_life_seconds.toFixed(2) + ' s' : '—');
+    text('ou-mean', ouValid ? ouFit.mean.toFixed(2) : '—');
+    text('ou-z', ouValid && ouFit.zscore !== null ? ouFit.zscore.toFixed(2) : '—');
+    let interpretation = 'Regime analysis unavailable: ' + (!s.ready ? 'Live data is missing.' : s.analysis_status + '.');
+    if (valid && last.regime === 'TRENDING') interpretation = 'H > ' + high + ': trend regime under your rule. Persistence is plausible; Hurst does not indicate whether price will rise or fall.';
+    if (valid && last.regime === 'MEAN REVERTING') interpretation = 'H < ' + low + ': mean-reversion regime under your rule. Reversals dominate this window; this alone does not establish a stable equilibrium.';
+    if (valid && last.regime === 'RANDOM WALK') interpretation = low + ' ≤ H ≤ ' + high + ': neutral. Your rule does not permit a trade. Consistent with a random walk, but not proof of Brownian motion.';
+    text('regime-text', interpretation);
+    document.getElementById('regime-text').style.color = color;
+    text('quality-text', 'Hurst window: 100 samples ≈ ' + s.hurst_window_seconds.toFixed(2) + ' s; OU window: 50 samples ≈ ' + s.ou_window_seconds.toFixed(2) + ' s. ' + s.distinct_ticks_in_window + ' distinct broker ticks in the Hurst window. The bid is held between ticks. This is a local estimate over a short window.');
+    text('er-text', er === null ? 'ER is waiting for data.' : 'ER = ' + er.toFixed(3) + ': net displacement is ' + (er * 100).toFixed(1) + '% of the total price path. Higher values indicate a straighter path; lower values indicate more backtracking. ER is neither a success probability nor independent proof of mean reversion.');
+    let ouText = 'OU fit is not available yet.';
+    if (ouValid) ouText = 'Local OU fit: κ = ' + ouFit.kappa_per_second.toFixed(3) + ' per second; half-life ' + ouFit.half_life_seconds.toFixed(2) + ' s. Under this model, a deviation from estimated μ halves on average over this period. Positive z-score: above μ; negative: below it. This is neither proof of stationarity nor an entry signal.';
+    else if (ouFit && ouFit.status === 'non_reverting') ouText = 'OU is not supported: AR(1) coefficient φ ≥ 1. This fit has no positive mean-reversion rate, so no half-life is reported.';
+    else if (ouFit && ouFit.status === 'not_ou') ouText = 'Invalid standard OU fit: φ ≤ 0. The window may oscillate, but it is not reported as a continuous OU process.';
+    else if (ouFit && ouFit.status === 'constant') ouText = 'OU cannot be identified: insufficient price variation.';
+    text('ou-text', ouText);
+    plot('prices', [s.price_history, s.clean_history], ['#555555', color]);
+    plot('noise', [s.noise_history], [color], {bars: true, range: [0, Math.max(.5, ...s.noise_history.map(v => v * 1.2))]});
+    plot('hurst', [s.hurst_history], ['#00ff00'], {range: [0, 1], baseline: .5, bands: [{lo: 0, hi: low, color: '#c084fc18'}, {lo: low, hi: high, color: '#fbbf2418'}, {lo: high, hi: 1, color: '#38bdf818'}]});
+  } catch (error) {
+    document.getElementById('status').textContent = 'Dashboard unavailable';
+    document.getElementById('error').textContent = 'Displayed values may be stale.';
+  } finally { setTimeout(update, 200); }
+}
+update();
+</script>
+</html>

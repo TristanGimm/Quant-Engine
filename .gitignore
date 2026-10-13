@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.venv/
+.venv*/
+__pycache__/
+*.py[cod]
+data/
+Generating_Keys/*.txt
+Generating_Keys/*.json
+.DS_Store
+*.pem
+*.key

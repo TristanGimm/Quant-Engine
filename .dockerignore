@@ -1,0 +1,10 @@
+.git
+.venv
+.venv*
+.env
+.env.*
+data
+Generating_Keys/*.txt
+Generating_Keys/*.json
+__pycache__
+tests
