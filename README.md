@@ -70,3 +70,5 @@ Only Hurst determines the regime. ER and the additional OU fit provide context a
 The confidence value is the implemented distance score: `200 * abs(H - 0.5)`, clipped to 0–100 in the two active regimes, and zero in the neutral band. It is not a calibrated probability of a successful trade.
 
 For the additional OU fit, `kappa = -log(phi) / dt`, `mu = a / (1 - phi)`, and `half_life_seconds = log(2) / kappa`. Its z-score expresses the latest price's distance from the fitted equilibrium in units of the estimated stationary scale. Invalid fits do not report an equilibrium or half-life. A constant ER window is assigned zero.
+
+- Deployed via: GitHub -> Gitea (instant sync) -> Gitea Actions -> ArgoCD
