@@ -9,8 +9,114 @@
 :root{color-scheme:dark;font-family:system-ui,sans-serif;background:#0b1019;color:#e6edf7}
 body{max-width:1180px;margin:auto;padding:32px}header{display:flex;justify-content:space-between;align-items:center}h1{font-size:25px}small,footer{color:#a2afc4}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:28px 0}.card,section{background:#131c2b;border:1px solid #26344c;border-radius:12px;padding:20px}.value{font-size:26px;margin-top:12px}canvas{width:100%;height:310px}#hurst,#noise{height:150px}#error{color:#ffb59c}#status{color:#91d7c7}.panel{margin-top:16px}.panel-top{display:flex;justify-content:space-between;align-items:center;gap:16px}.explain{line-height:1.6}.explain p{margin:10px 0}.legend{display:flex;flex-wrap:wrap;gap:18px;margin:16px 0}.key{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.muted{color:#a2afc4}details{margin-top:16px}footer{margin-top:20px;font-size:13px;line-height:1.6}@media(max-width:700px){body{padding:16px}.cards{grid-template-columns:1fr 1fr}header,.panel-top{display:block}}
 </style>
-<header><div><small>GIMM HOLDING / MARKET RESEARCH</small><h1>Quant Engine · SYM4 + HURST + OU</h1></div><div id="status">Connecting to dashboard…</div></header>
-<form method="post" action="/logout"><button type="submit">Sign out</button></form>
+<style>
+  /* The same atmospheric backdrop as the sign-in page, pushed back so the
+     readings stay legible. */
+  html { background: #0b1019; }
+  body { position: relative; background: transparent; }
+  .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #04060c; pointer-events: none; }
+  .bg video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 2.2s cubic-bezier(.4,0,.2,1); }
+  .bg video.on { opacity: .5; }
+  .bg .scrim {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(180deg, #0b1019f2 0%, #0b1019c7 38%, #0b1019eb 100%),
+      radial-gradient(ellipse 90% 70% at 50% 35%, transparent 20%, #0b101999 100%);
+  }
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 26px; }
+  .brandline { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: #e6edf7; text-decoration: none; }
+  .brand .mark { border-radius: 9px; box-shadow: 0 4px 20px #6253d526; flex-shrink: 0; }
+  .brand span { font-size: 11.5px; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; color: #cfd6e4; }
+  .top-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  #status { font-size: 12px; color: #91d7c7; }
+  .signout { border: 1px solid #ffffff24; background: #ffffff0a; color: #cfd6e4; border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 11px; cursor: pointer; }
+  .signout:hover { background: #ffffff14; border-color: #ffffff3d; color: #fff; }
+  .titlebar { margin-bottom: 4px; }
+  .titlebar small { display: block; color: #a2afc4; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 8px; }
+  .titlebar h1 { margin: 0; }
+
+  /* Product switcher, identical to the landing and sign-in headers. */
+  .nav-switch { position: relative; }
+  .nav-switch > button {
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+    height: 32px; padding: 0 12px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04);
+    color: #cfd6e4; font: inherit; font-size: 11px; font-weight: 550;
+    backdrop-filter: blur(8px);
+    transition: border-color .16s, background .16s, color .16s;
+  }
+  .nav-switch > button:hover, .nav-switch.open > button {
+    border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.09); color: #fff;
+  }
+  .nav-switch svg.chev { width: 12px; height: 12px; transition: transform .18s; }
+  .nav-switch.open svg.chev { transform: rotate(180deg); }
+  .nav-switch .menu {
+    position: absolute; top: calc(100% + 7px); left: 0; z-index: 70;
+    width: 244px; padding: 6px;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 11px;
+    background: rgba(17,20,30,.97); backdrop-filter: blur(16px);
+    box-shadow: 0 24px 60px #000000a6;
+    display: none;
+  }
+  .nav-switch.open .menu { display: block; }
+  .nav-switch .menu a, .nav-switch .menu span.current {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 10px; border-radius: 7px;
+    color: #c9d1e0; font-size: 11.5px; text-decoration: none;
+  }
+  .nav-switch .menu a:hover { background: rgba(255,255,255,.07); color: #fff; }
+  .nav-switch .menu span.current { color: #a99bff; }
+  .nav-switch .menu i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* Glass panels keep the video visible without hurting the charts. */
+  .card, section, footer { position: relative; z-index: 1; }
+  .card, section { background: rgba(19, 28, 43, .84); backdrop-filter: blur(14px); border-color: #26344c; }
+  @media (max-width: 700px) {
+    header.top { align-items: flex-start; }
+    .top-actions { width: 100%; justify-content: space-between; }
+    .nav-switch .menu { width: 216px; left: auto; right: 0; }
+  }
+</style>
+<body>
+<div class="bg" aria-hidden="true">
+  <video id="wide" muted loop playsinline autoplay preload="auto" poster="/videos/globe-landscape.jpg">
+    <source src="/videos/globe-landscape.mp4" type="video/mp4">
+  </video>
+  <video id="tall" muted loop playsinline autoplay preload="auto" poster="/videos/globe-portrait.jpg">
+    <source src="/videos/globe-portrait.mp4" type="video/mp4">
+  </video>
+  <div class="scrim"></div>
+</div>
+
+<header class="top">
+  <div class="brandline">
+    <a class="brand" href="/" aria-label="Quant Engine home">
+      <svg class="mark" width="34" height="34" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="mk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7660d5"/><stop offset="1" stop-color="#354e99"/></linearGradient></defs>
+        <rect width="64" height="64" rx="16" fill="url(#mk)"/>
+        <path d="M17 45V34M29 45V25M41 45V17" fill="none" stroke="#eeeaff" stroke-width="6" stroke-linecap="round"/>
+        <path d="m16 24 12-10" fill="none" stroke="#eeeaff" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span>Quant Engine</span>
+    </a>
+    <div class="nav-switch" id="nav-switch">
+      <button type="button" aria-expanded="false" aria-controls="nav-menu" aria-haspopup="true">Navigation
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="menu" id="nav-menu" role="menu" aria-label="Products">
+        <a role="menuitem" href="https://dashboard.gimmholding.com/dashboard" data-port="3000" data-path="/dashboard"><i></i>Master Trading Dashboard</a>
+        <span class="current" role="menuitem" aria-current="page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>Quant Engine</span>
+        <a role="menuitem" href="https://copier-engine.gimmholding.com/app" data-port="8200" data-path="/app"><i></i>Trade Copier Engine</a>
+      </div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <div id="status">Connecting to dashboard…</div>
+    <form method="post" action="/logout"><button type="submit" class="signout">Sign out</button></form>
+  </div>
+</header>
+<div class="titlebar"><small>GIMM HOLDING / MARKET RESEARCH</small><h1>Quant Engine · SYM4 + HURST + OU</h1></div>
 <p id="error" role="alert"></p>
 <div class="cards">
   <div class="card"><small id="symbol">Market</small><div class="value" id="price">—</div></div>
@@ -65,7 +171,7 @@ body{max-width:1180px;margin:auto;padding:32px}header{display:flex;justify-conte
     <p>Hurst determines the regime. ER and the OU fit do not override it. Short windows, held prices and market microstructure can bias the estimates.</p>
   </details>
 </section>
-<footer>Market observation only · No order execution. Confidence follows the original Hurst formula and is not a calibrated success probability. The original sampling loop holds the latest bid between broker ticks; calculations pause after disconnection or when data is more than 120 seconds old.</footer>
+<footer class="disclaimer">Market observation only · No order execution. Confidence follows the original Hurst formula and is not a calibrated success probability. The original sampling loop holds the latest bid between broker ticks; calculations pause after disconnection or when data is more than 120 seconds old.</footer>
 <script>
 function plot(id, series, colors, options = {}) {
   const c = document.getElementById(id), r = c.getBoundingClientRect(), d = devicePixelRatio || 1;
@@ -168,4 +274,46 @@ async function update() {
 }
 update();
 </script>
+<script src="/nav.js"></script>
+<script>
+(function () {
+  var wide = document.getElementById('wide'), tall = document.getElementById('tall');
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var portrait = window.matchMedia('(orientation: portrait)');
+  function apply() {
+    var useTall = portrait.matches || window.innerWidth < window.innerHeight;
+    var active = useTall ? tall : wide, idle = useTall ? wide : tall;
+    wide.classList.toggle('on', !useTall);
+    tall.classList.toggle('on', useTall);
+    idle.pause();
+    if (reduced.matches) active.pause(); else active.play().catch(function () {});
+  }
+  var scenes = [
+    { wide: '/videos/globe-landscape.mp4', tall: '/videos/globe-portrait.mp4' },
+    { wide: '/videos/horizon-landscape.mp4', tall: '/videos/horizon-portrait.mp4' }
+  ];
+  var index = 0;
+  function swap() {
+    index = (index + 1) % scenes.length;
+    var useTall = portrait.matches || window.innerWidth < window.innerHeight;
+    var el = useTall ? tall : wide, other = useTall ? wide : tall;
+    other.classList.remove('on');
+    el.classList.remove('on');
+    el.src = scenes[index][useTall ? 'tall' : 'wide'];
+    el.load();
+    el.play().catch(function () {});
+    el.classList.add('on');
+  }
+  apply();
+  portrait.addEventListener('change', apply);
+  window.addEventListener('resize', apply);
+  if (!reduced.matches) setInterval(swap, 120000);
+  document.addEventListener('visibilitychange', function () {
+    var active = wide.classList.contains('on') ? wide : tall;
+    if (document.hidden) active.pause();
+    else if (!reduced.matches) active.play().catch(function () {});
+  });
+})();
+</script>
+</body>
 </html>

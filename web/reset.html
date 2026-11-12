@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reset password · Quant Engine</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/auth.css">
+</head>
+<body>
+<div class="page">
+  <div class="bg" aria-hidden="true">
+    <video id="wide" muted loop playsinline autoplay preload="auto" poster="/videos/globe-landscape.jpg">
+      <source src="/videos/globe-landscape.mp4" type="video/mp4">
+    </video>
+    <video id="tall" muted loop playsinline autoplay preload="auto" poster="/videos/globe-portrait.jpg">
+      <source src="/videos/globe-portrait.mp4" type="video/mp4">
+    </video>
+    <div class="scrim"></div>
+  </div>
+
+  <header>
+    <a class="brand" href="/">
+      <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true">
+        <defs><linearGradient id="mk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7660d5"/><stop offset="1" stop-color="#354e99"/></linearGradient></defs>
+        <rect width="64" height="64" rx="16" fill="url(#mk)"/>
+        <path d="M17 45V34M29 45V25M41 45V17" fill="none" stroke="#eeeaff" stroke-width="6" stroke-linecap="round"/>
+        <path d="m16 24 12-10" fill="none" stroke="#eeeaff" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span>Quant Engine</span>
+    </a>
+    <div class="nav-switch">
+      <button type="button" aria-haspopup="true">Navigation
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="menu" role="menu" aria-label="Products">
+        <a role="menuitem" href="https://dashboard.gimmholding.com/dashboard" data-port="3000" data-path="/dashboard"><i></i>Master Trading Dashboard</a>
+        <span class="current" role="menuitem" aria-current="page"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>Quant Engine</span>
+        <a role="menuitem" href="https://copier-engine.gimmholding.com/app" data-port="8200" data-path="/app"><i></i>Trade Copier Engine</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero">
+      <strong>Quant Engine</strong>
+    </div>
+
+    <section class="card">
+      <h2>Reset password.</h2>
+      <!-- ERROR -->
+      <form method="post" action="/login/reset">
+        <label for="username"><span>Username or email</span>
+          <div class="field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <input id="username" name="username" autocomplete="username" required maxlength="254" placeholder="Tristan Gimm">
+          </div>
+        </label>
+        <label for="password"><span>Password</span>
+          <div class="field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" required maxlength="512" placeholder="12+ characters">
+          </div>
+        </label>
+        <label for="token"><span>Setup token</span>
+          <div class="field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7h5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5"/><path d="M12 3v8M9 8l3 3 3-3"/></svg>
+            <input id="token" name="token" type="password" autocomplete="off" required maxlength="512" placeholder="From the server configuration">
+          </div>
+        </label>
+        <button type="submit">Set password
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+      <div class="foot"><a href="/login">Back to sign in</a><a href="/login/register">Create account</a></div>
+    </section>
+  </main>
+</div>
+<script>
+(function () {
+  var wide = document.getElementById('wide');
+  var tall = document.getElementById('tall');
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var portrait = window.matchMedia('(orientation: portrait)');
+  function apply() {
+    var useTall = portrait.matches || window.innerWidth < window.innerHeight;
+    wide.classList.toggle('on', !useTall);
+    tall.classList.toggle('on', useTall);
+    (useTall ? wide : tall).pause();
+    if (!reduced.matches) (useTall ? tall : wide).play().catch(function () {});
+  }
+  var scenes = [
+    { wide: '/videos/globe-landscape.mp4', tall: '/videos/globe-portrait.mp4' },
+    { wide: '/videos/horizon-landscape.mp4', tall: '/videos/horizon-portrait.mp4' }
+  ];
+  var index = 0;
+  function swap() {
+    index = (index + 1) % scenes.length;
+    var useTall = portrait.matches || window.innerWidth < window.innerHeight;
+    var el = useTall ? tall : wide;
+    var other = useTall ? wide : tall;
+    other.classList.remove('on');
+    el.classList.remove('on');
+    el.src = scenes[index][useTall ? 'tall' : 'wide'];
+    el.load();
+    el.play().catch(function () {});
+    el.classList.add('on');
+  }
+  apply();
+  portrait.addEventListener('change', apply);
+  window.addEventListener('resize', apply);
+  if (!reduced.matches) setInterval(swap, 120000);
+  document.addEventListener('visibilitychange', function () {
+    var active = wide.classList.contains('on') ? wide : tall;
+    if (document.hidden) active.pause();
+    else if (!reduced.matches) active.play().catch(function () {});
+  });
+})();
+</script>
+<script src="/nav.js"></script>
+</body>
+</html>

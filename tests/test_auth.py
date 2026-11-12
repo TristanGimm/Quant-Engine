@@ -15,7 +15,14 @@ class AuthTest(unittest.TestCase):
         cls.encoded = password_hash('a long test password')
 
     def setUp(self):
-        with patch.dict(os.environ, {'DASHBOARD_LOGIN_HASH': self.encoded}):
+        # Pin the scheme: the origin check derives it from this variable, and a
+        # local .env or another test module can otherwise flip it mid-run.
+        env = {
+            'DASHBOARD_LOGIN_HASH': self.encoded,
+            'DASHBOARD_COOKIE_SECURE': 'true',
+            'DASHBOARD_USER': 'quant',
+        }
+        with patch.dict(os.environ, env):
             self.auth = Login(Mock())
 
     def request(self, path, origin='https://quant.example', cookie=None):
