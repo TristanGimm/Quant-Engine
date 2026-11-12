@@ -5,7 +5,7 @@ RUN groupadd --gid 10001 quant && useradd --uid 10001 --gid quant --no-create-ho
 COPY requirements.txt .
 COPY vendor ./vendor
 RUN pip install --no-cache-dir --upgrade pip==26.2.1 && pip install --no-cache-dir -r requirements.txt && pip check
-COPY --chown=quant:quant live_quant_engine.py dashboard_auth.py .
+COPY --chown=quant:quant live_quant_engine.py dashboard_auth.py dashboard_users.py .
 COPY --chown=quant:quant web ./web
 COPY --chown=quant:quant Generating_Keys/get_token.py ./Generating_Keys/get_token.py
 RUN mkdir /app/data && chown quant:quant /app/data
