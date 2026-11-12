@@ -99,6 +99,29 @@ class Login(Resource):
         request.setHeader(b'X-Content-Type-Options', b'nosniff')
         return requested.read_bytes()
 
+    def version(self):
+        """A token that changes when a stylesheet or script changes."""
+        cached = getattr(self, '_asset_version', None)
+        if cached is None:
+            stamps = []
+            for name in ('auth.css', 'nav.js', 'landing.js', 'style.css'):
+                try:
+                    stamps.append(str(int((self.web / name).stat().st_mtime)))
+                except OSError:
+                    pass
+            cached = '-'.join(stamps) or '1'
+            self._asset_version = cached
+        return cached
+
+    def page(self, name, fallback=b''):
+        """An HTML page whose asset URLs carry a version, so a cached bundle
+        from before the no-cache header cannot hide a deploy."""
+        raw = self.asset(name, fallback)
+        version = self.version().encode()
+        for asset in (b'auth.css', b'nav.js', b'landing.js', b'style.css'):
+            raw = raw.replace(b'"/' + asset + b'"', b'"/' + asset + b'?v=' + version + b'"')
+        return raw
+
     def render_GET(self, request):
         if request.path == b'/nav.js':
             request.setHeader(b'Content-Type', b'text/javascript; charset=utf-8')
@@ -112,7 +135,7 @@ class Login(Resource):
         if request.path in self.pages:
             request.setHeader(b'Content-Type', b'text/html; charset=utf-8')
             request.setHeader(b'Cache-Control', b'no-store')
-            return self.asset(self.pages[request.path]).replace(b'<!-- ERROR -->', b'')
+            return self.page(self.pages[request.path]).replace(b'<!-- ERROR -->', b'')
         if request.path == b'/landing.js':
             request.setHeader(b'Content-Type', b'text/javascript; charset=utf-8')
             request.setHeader(b'Cache-Control', b'no-cache')
@@ -127,13 +150,13 @@ class Login(Resource):
             return self.dashboard.render_GET(request)
         if request.path == b'/login':
             request.setHeader(b'Content-Type', b'text/html; charset=utf-8')
-            return self.html
+            return self.page('login.html', self.html)
         if not self.active(request):
             if request.path == b'/':
                 # Anonymous visitors get the shared landing page instead of a
                 # bare redirect to the password form.
                 request.setHeader(b'Content-Type', b'text/html; charset=utf-8')
-                return self.asset('landing.html', self.landing)
+                return self.page('landing.html', self.landing)
             if request.path.startswith(b'/api/') or request.path == b'/readyz':
                 request.setResponseCode(401)
                 return b'Authentication required'
@@ -264,7 +287,7 @@ class Login(Resource):
             else:
                 request.setResponseCode(401)
                 request.setHeader(b'Content-Type', b'text/html; charset=utf-8')
-                request.write(self.asset('login.html', self.html).replace(b'<!-- ERROR -->', b'<p role="alert">Incorrect username or password.</p>'))
+                request.write(self.page('login.html', self.html).replace(b'<!-- ERROR -->', b'<p role="alert">Incorrect username or password.</p>'))
             request.finish()
         def failed(failure):
             # Always complete the HTTP response if verification or cookie handling fails.

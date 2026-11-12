@@ -349,8 +349,17 @@ class Dashboard(Resource):
     def __init__(self, engine):
         super().__init__()
         self.engine = engine
-        self.html = (Path(__file__).parent / "web" / "index.html").read_bytes()
-        self.favicon = (Path(__file__).parent / "web" / "favicon.svg").read_bytes()
+        web = Path(__file__).parent / "web"
+        self.favicon = (web / "favicon.svg").read_bytes()
+        # Version the script URL: a browser that cached /nav.js before the
+        # no-cache header existed would otherwise keep the old file forever.
+        html = (web / "index.html").read_bytes()
+        try:
+            stamp = str(int((web / "nav.js").stat().st_mtime)).encode()
+            html = html.replace(b'"/nav.js"', b'"/nav.js?v=' + stamp + b'"')
+        except OSError:
+            pass
+        self.html = html
 
     def render_GET(self, request):
         request.setHeader(b"Cache-Control", b"no-store")
